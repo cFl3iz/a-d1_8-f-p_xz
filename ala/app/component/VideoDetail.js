@@ -31,7 +31,8 @@ export default class VideoDetail extends React.Component {
                 rate: 1,
                 muted: false,
                 resizeMode: 'contain',
-                repeat: false
+                repeat: false,
+                videoReady:false
             }
         )
     }
@@ -39,38 +40,47 @@ export default class VideoDetail extends React.Component {
 
     static defaultProps = {}
 
+
+    //从导航返回上一层
     _backToList() {
         console.log('what the fuck?')
         this.props.navigator.pop();
     }
 
-    loadStart() {
+
+    // 所有Video的方法
+
+    //当视频开始加载
+    _loadStart() {
         console.log('onLoadStart')
     }
 
-    setDuration() {
-
-    }
-
+    //每个250毫秒会调用一次
     _onProgress(data) {
-        console.log('_onProgress')
+        //当资源ok了
+        if(!this.state.videoReady){
+            this.setState({
+                videoReady:!this.state.videoReady
+            })
+        }
+        console.log(data)
     }
-
-    onEnd() {
+    //视频播放完毕
+    _onEnd() {
 
     }
-
-    videoError(e) {
+    //视频出错时
+    _videoError(e) {
         console.log(e)
-        console.log('_onProgress')
+        console.log('_videoError')
     }
 
-    onBuffer() {
-
+    _onBuffer() {
+        console.log('on buffer')
     }
 
-    onTimedMetadata() {
-
+    _onTimedMetadata() {
+        console.log('_onTimedMetadata')
     }
 
     render() {
@@ -82,27 +92,30 @@ export default class VideoDetail extends React.Component {
                 <View style={styles.videoBox}>
 
                     <Video
-                        source={require('./cocosvideo.mp4')}
+                        source={{uri: data.videoPath}}
                         ref='videoPlayer'
-                        rate={1}
+                        rate={this.state.rate}
                         volume={0}
-                        muted={false}
+                        muted={this.state.muted}
                         paused={false}
-                        resizeMode="cover"
-                        repeat={true}
+                        resizeMode={this.state.resizeMode}
+                        repeat={this.state.repeat}
                         playInBackground={false}
                         playWhenInactive={false}
                         ignoreSilentSwitch={"ignore"}
                         progressUpdateInterval={250.0}
-                        onLoadStart={this.loadStart}
-                        onLoad={this.setDuration}
-                        onProgress={this.setTime}
-                        onEnd={this.onEnd}
-                        onError={this.videoError}
-                        onBuffer={this.onBuffer}
-                        onTimedMetadata={this.onTimedMetadata}
+                        onLoadStart={this._loadStart}
+                        onLoad={this._setDuration}
+                        onProgress={this._onProgress.bind(this)}
+                        onEnd={this._onEnd}
+                        onError={this._videoError}
+                        onBuffer={this._onBuffer}
+                        onTimedMetadata={this._onTimedMetadata}
                         style={styles.video}/>
-
+                    {
+                        !this.state.videoReady &&
+                        <ActivityIndicator color="#ee735c" style={styles.loading}/>
+                    }
                 </View>
             </View>
 
@@ -132,6 +145,17 @@ const styles = StyleSheet.create({
         width: width,
         height: 360,
         backgroundColor: '#000'
+    },
+
+
+
+    loading:{
+        position:'absolute',
+        left:0,
+        top:140,
+        width:width,
+        alignSelf:'center',
+        backgroundColor:'transparent'
     }
 
 });
