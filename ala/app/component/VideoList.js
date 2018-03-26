@@ -184,7 +184,7 @@ export default class VideoList extends React.Component {
 
             console.error(error);
         });
-        },2000)
+        },100)
     }
 
     //获取更多数据
@@ -244,7 +244,7 @@ export default class VideoList extends React.Component {
 
             <View style={[styles.tabContent]}>
                 <View style={styles.header}>
-                    <Text style={styles.headerTitle}>列表页面</Text>
+                    <Text style={styles.headerTitle}>广场舞列表</Text>
                 </View>
                 <ListView
                     dataSource={this.state.dataSource}
