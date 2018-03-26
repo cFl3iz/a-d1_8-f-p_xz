@@ -1,0 +1,30 @@
+{
+	"name": "ala",
+	"version": "0.0.1",
+	"private": true,
+	"scripts": {
+		"start": "react-native start",
+		"test": "jest"
+	},
+	"dependencies": {
+		"immutable": "^3.8.1",
+		"lodash": "^4.16.4",
+		"mockjs": "^1.0.1-beta3",
+		"prop-types": "^15.6.1",
+		"query-string": "^4.2.3",
+		"react": "15.4.2",
+		"react-native": "^0.42.3",
+		"react-native-deprecated-custom-components": "^0.1.2",
+		"react-native-vector-icons": "^4.0.0",
+		"react-native-video": "git+https://github.com/react-native-community/react-native-video.git"
+	},
+	"devDependencies": {
+		"babel-jest": "22.4.3",
+		"babel-preset-react-native": "4.0.0",
+		"jest": "22.4.3",
+		"react-test-renderer": "15.4.2"
+	},
+	"jest": {
+		"preset": "react-native"
+	}
+}
