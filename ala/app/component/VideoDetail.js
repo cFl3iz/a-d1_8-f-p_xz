@@ -9,6 +9,8 @@ import Video from 'react-native-video'
 import {
     StyleSheet,
     Text,
+    ScrollView,
+    Image,
     View,
     ActivityIndicator,
     Dimensions,
@@ -30,7 +32,7 @@ export default class VideoDetail extends React.Component {
             {
                 data: this.props.data,
                 //Video State
-                rate: 1,
+                rate: 1.0,
                 muted: false,
                 resizeMode: 'contain',
                 repeat: false,
@@ -40,7 +42,8 @@ export default class VideoDetail extends React.Component {
                 videoLoaded:false,
                 playing:false,
                 paused:false,
-                videoOk:true
+                videoOk:true,
+                playerEnd:false
             }
         )
     }
@@ -68,7 +71,7 @@ export default class VideoDetail extends React.Component {
         //当资源ok了
         if(!this.state.videoLoaded){
             this.setState({
-                videoLoaded:true
+                videoLoaded:!this.state.videoLoaded
             })
         }
         //总共时长
@@ -89,21 +92,22 @@ export default class VideoDetail extends React.Component {
             newState.videoLoaded = true
         }
         // 如果视频播放状态不为true，此时将状态改为就绪
-        if(!this.state.playing){
+        if(!this.state.playing && !this.state.playerEnd ){
             newState.playing = true
         }
 
 
         this.setState(newState)
 
-        console.log(data)
+//        console.log(data)
     }
     //视频播放完毕
     _onEnd() {
         //视频播放完毕 进度条完整,playing状态变成假。
         this.setState({
             videoProgress:1,
-            playing:false
+            playing:false,
+            playerEnd:true
         })
     }
     //视频出错时
@@ -122,9 +126,16 @@ export default class VideoDetail extends React.Component {
     _onTimedMetadata() {
         console.log('_onTimedMetadata')
     }
-
+    _setDuration(){
+        console.log('onLoad')
+    }
     //让视频重新播放
     _rePlay(){
+        this.setState({
+            paused:false,
+            playing:true,
+            playerEnd:false
+        })
         this.refs.videoPlayer.seek(0);
     }
 
@@ -142,7 +153,8 @@ export default class VideoDetail extends React.Component {
         if(this.state.paused) {
             this.setState({
                 paused: false,
-                playing:true
+                playing:true,
+                playerEnd:false
             })
         }
     }
@@ -170,7 +182,7 @@ export default class VideoDetail extends React.Component {
                         source={{uri: data.videoPath}}
                         ref='videoPlayer'
                         rate={this.state.rate}
-                        volume={5}
+                        volume={1.0}
                         muted={this.state.muted}
                         paused={this.state.paused}
                         resizeMode={this.state.resizeMode}
@@ -186,7 +198,10 @@ export default class VideoDetail extends React.Component {
                         onError={this._videoError.bind(this)}
                         onBuffer={this._onBuffer}
                         onTimedMetadata={this._onTimedMetadata}
-                        style={styles.video}/>
+                        style={styles.video}
+
+                        />
+
                     {
                         !this.state.videoOk && <Text style={styles.failText}>视频出错!很抱歉无法播放</Text>
                     }
@@ -198,7 +213,7 @@ export default class VideoDetail extends React.Component {
                     }
 
                     {
-                        this.state.videoLoaded  && !this.state.playing
+                        this.state.videoLoaded  && !this.state.playing && this.state.playerEnd
                         ? <Icon size={48} name='ios-play' onPress={this._rePlay.bind(this)} style={styles.playIcon} />
                         : null
                     }
@@ -219,6 +234,21 @@ export default class VideoDetail extends React.Component {
                         <View style={[styles.progressBar,{width: width * this.state.videoProgress}]}>
                         </View>
                     </View>
+
+                    <ScrollView
+                        automaticallyAdjustContentInsets={false}
+                        enableEmptySections={true}
+                        showsVerticalScrollIndicator={false}
+                        style={styles.authorScrollview}
+                        >
+                        <View style={styles.infoBox}>
+                            <Image style={styles.avatar} srouce={{uri:data.author.avatar}} />
+                            <View style={styles.descBox}>
+                                <Text style={styles.nickName} >{data.author.nickName}</Text>
+                                <Text style={styles.descTitle} >{data.title}</Text>
+                            </View>
+                        </View>
+                    </ScrollView>
                 </View>
             </View>
 
@@ -364,5 +394,35 @@ const styles = StyleSheet.create({
         textAlign:'center',
         color:'#fff',
         backgroundColor:'transparent'
+    },
+
+    //视频作者信息样式
+    infoBox:{
+        width:width,
+        flexDirection:'row',
+        justifyContent:'center',
+        marginTop:10
+    },
+    avatar:{
+        width:60,
+        height:60,
+        marginRight:10,
+        marginLeft:10,
+        borderRadius:30
+    },
+    descBox:{
+        flex:1
+    },
+    nickName:{
+        fontSize:18
+    },
+    descTitle:{
+        marginTop:8,
+        fontSize:16,
+        color:'#666'
+    },
+    authorScrollview:{
+        width:width,
+        height:1280
     }
 });
