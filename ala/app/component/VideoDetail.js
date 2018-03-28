@@ -12,24 +12,42 @@ import {
     ScrollView,
     Image,
     View,
+    ListView,
     ActivityIndicator,
     Dimensions,
     TouchableOpacity
 } from 'react-native';
 
 import Icon from 'react-native-vector-icons/Ionicons';
-
+import requestHelper from '../common/requestHelper';
+import config from '../common/config';
 //拿屏幕宽度
 var width = Dimensions.get('window').width;
 
+var cachedResults = {
+    nextPage: 1,
+    items: [],
+    total: 0
+}
+
 export default class VideoDetail extends React.Component {
 
-    player;
+
+
+
 
     constructor(props) {
+
         super(props);
+
+        var ds = new ListView.DataSource({
+            rowHasChanged: (r1, r2) => r1 !== r2
+        });
+
+
         this.state = (
             {
+
                 data: this.props.data,
                 //Video State
                 rate: 1.0,
@@ -43,7 +61,14 @@ export default class VideoDetail extends React.Component {
                 playing:false,
                 paused:false,
                 videoOk:true,
-                playerEnd:false
+                playerEnd:false,
+
+                //comments
+                comments:null,
+                dataSource:ds.cloneWithRows([]),
+                isLoadingTail: false,
+                isRefreshing:false
+
             }
         )
     }
@@ -159,6 +184,138 @@ export default class VideoDetail extends React.Component {
         }
     }
 
+    componentDidMount() {
+        console.log('detail did mount')
+        //是第一次加载
+
+            this._fetchData(1)
+
+
+    }
+
+
+    _fetchData(page) {
+
+        var that = this
+
+                //正在读取状态
+            that.setState({
+                    isLoadingTail: true
+            })
+
+            var url  = config.api.base + config.api.comments
+            requestHelper.get(url,
+                {
+                    accessToken: 'abc',
+                    id:124,
+                    page: page
+                }
+            ).then(
+                (data) => {
+                    if (data.success) {
+
+                        var items = cachedResults.items.slice()
+
+
+                            //直接追加
+                            items = items.concat(data.comments)
+                            cachedResults.nextPage += 1
+
+
+                        cachedResults.items = items
+
+                        cachedResults.total = data.total
+
+
+                            that.setState(
+                                {
+                                    isLoadingTail: false,
+                                    dataSource: that.state.dataSource.cloneWithRows(cachedResults.items)
+                                }
+                            )
+
+
+                    }
+                }
+            ).catch((error) => {
+                console.log('error='+JSON.stringify(error))
+
+                    that.setState(
+                        {
+                            isLoadingTail: false
+                        }
+                    )
+
+
+                console.error(error);
+            });
+
+    }
+
+
+
+
+    //评论拉到底部时加载
+    _renderFoot(){
+
+        if (!this._haseMore() && cachedResults.total!==0) {
+            return (
+                <View style={styles.loadingMore}><Text style={styles.loadingText}>没有更多里</Text></View>
+            )
+        }else if (this._haseMore() && cachedResults.total!==0){
+            return <ActivityIndicator style={styles.loadingMore} />
+
+        }
+
+    }
+
+    //获取更多数据
+    _fetchMoreData() {
+        console.log('fetch more data this._haseMore()?'+this._haseMore())
+        console.log('fetch more data this.state.isLoadingTail?'+this.state.isLoadingTail)
+        if (!this._haseMore() || this.state.isLoadingTail == true) {
+            return null
+        }else{
+            var page = cachedResults.nextPage
+            this._fetchData(page)
+        }
+
+
+    }
+
+
+    //是否还有更多的数据
+    _haseMore() {
+        return cachedResults.items.length !== cachedResults.total
+    }
+
+
+    // 渲染每一行
+    _renderRow(row){
+        return (
+            <View key={row._id} style={styles.replyBox}>
+                <Image style={styles.replyAvatra} source={{uri:row.replyBy.avatar}} />
+                <View style={styles.reply}>
+                    <Text style={styles.replyNickname} >{row.replyBy.nickName}</Text>
+                    <Text style={styles.replyContent} >{row.replyBy.content}</Text>
+                </View>
+            </View>
+        )
+    }
+
+    _renderHeader(){
+        var data = this.state.data
+        return(
+            <View style={styles.infoBox}>
+                <Image style={styles.avatar} source={{uri:data.author.avatar}} />
+                <View style={styles.descBox}>
+                    <Text style={styles.nickName} >{data.author.nickName}</Text>
+                    <Text style={styles.descTitle} >{data.title}</Text>
+                </View>
+            </View>
+        )
+    }
+
     render() {
         var data = this.state.data
         return (
@@ -234,22 +391,23 @@ export default class VideoDetail extends React.Component {
                         <View style={[styles.progressBar,{width: width * this.state.videoProgress}]}>
                         </View>
                     </View>
-
-                    <ScrollView
-                        automaticallyAdjustContentInsets={false}
-                        enableEmptySections={true}
-                        showsVerticalScrollIndicator={false}
-                        style={styles.authorScrollview}
-                        >
-                        <View style={styles.infoBox}>
-                            <Image style={styles.avatar} srouce={{uri:data.author.avatar}} />
-                            <View style={styles.descBox}>
-                                <Text style={styles.nickName} >{data.author.nickName}</Text>
-                                <Text style={styles.descTitle} >{data.title}</Text>
-                            </View>
-                        </View>
-                    </ScrollView>
                 </View>
+
+
+
+                <ListView
+                    removeClippedSubviews={false}
+                    style={styles.authorScrollview}
+                    renderHeader={()=>this._renderHeader()}
+                    dataSource={this.state.dataSource}
+                    renderRow={this._renderRow}
+                    onEndReachedThreshold={20}
+                    renderFooter={()=>this._renderFoot()}
+                    onEndReached={()=>this._fetchMoreData()}
+                    enableEmptySections={true}
+                    automaticallyAdjustContentInsets={false}
+                    showsVerticalScrollIndicator={false}
+                />
             </View>
 
         )
@@ -309,14 +467,15 @@ const styles = StyleSheet.create({
         margin: 50,
     },
     videoBox: {
-        width: width,
-        height: 360,
-        backgroundColor: '#000'
 
+        width: width,
+        height: width * 0.56,
+        backgroundColor: '#000'
     },
     video: {
+        zIndex:1,
         width: width,
-        height: 360,
+        height: width * 0.56,
         backgroundColor: '#000'
     },
 
@@ -325,7 +484,7 @@ const styles = StyleSheet.create({
     loading:{
         position:'absolute',
         left:0,
-        top:140,
+        top:80,
         width:width,
         alignSelf:'center',
         backgroundColor:'transparent'
@@ -346,7 +505,7 @@ const styles = StyleSheet.create({
 
     //播放按钮
     playIcon: {
-        top:140,
+        top:80,
         position: 'absolute',
         bottom: 14,
         left:width /2 - 30,
@@ -364,14 +523,15 @@ const styles = StyleSheet.create({
     //暂停按钮
     pauseBtn:{
         width:width,
-        height:360,
+        height:90,
         position:'absolute',
         left:0,
-        top:0
+        top:0,
+        height: width * 0.56
     },
     //重新播放按钮
     resumeIcon: {
-        top:140,
+        top:80,
         position: 'absolute',
         bottom: 14,
         left:width /2 - 30,
@@ -389,7 +549,7 @@ const styles = StyleSheet.create({
     failText:{
         position:'absolute',
         left:0,
-        top:180,
+        top:90,
         width:width,
         textAlign:'center',
         color:'#fff',
@@ -424,5 +584,36 @@ const styles = StyleSheet.create({
     authorScrollview:{
         width:width,
         height:1280
+    },
+
+    // 评论区域
+    replyBox:{
+        flexDirection:'row',
+        justifyContent:'flex-start',
+        marginTop:10
+    },
+    replyAvatra:{
+        width:40,
+        height:40,
+        marginRight:10,
+        marginLeft:10,
+        borderRadius:20
+    },
+    replyNickname:{
+        color:'#666'
+    },
+    replyContent:{
+        marginTop:4,
+        color:'#666'
+    },
+    reply:{
+        flex:1
+    },
+    loadingMore:{
+        marginVertical:20
+    },
+    loadingText:{
+        color:'#777',
+        textAlign:'center'
     }
 });

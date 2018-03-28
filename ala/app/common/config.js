@@ -14,6 +14,7 @@ module.exports = {
     api:{
         base:'http://rapapi.org/mockjs/31274/',
         creations:'api/videos',
-        up:'api/up'
+        up:'api/up',
+        comments:'api/comments'
     }
 }
