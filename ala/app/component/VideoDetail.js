@@ -366,7 +366,7 @@ export default class VideoDetail extends React.Component {
 
                     {
                         !this.state.videoLoaded &&
-                        <ActivityIndicator color="#ee735c" style={styles.loading}/>
+                        <ActivityIndicator   color="#ee735c" style={styles.loading}/>
                     }
 
                     {
@@ -467,13 +467,13 @@ const styles = StyleSheet.create({
         margin: 50,
     },
     videoBox: {
-
+        zIndex:0,
         width: width,
         height: width * 0.56,
-        backgroundColor: '#000'
+        backgroundColor: 'transparent'
     },
     video: {
-        zIndex:1,
+        zIndex:2,
         width: width,
         height: width * 0.56,
         backgroundColor: '#000'
@@ -482,6 +482,7 @@ const styles = StyleSheet.create({
 
 
     loading:{
+        zIndex:2,
         position:'absolute',
         left:0,
         top:80,
@@ -505,6 +506,7 @@ const styles = StyleSheet.create({
 
     //播放按钮
     playIcon: {
+        zIndex:2,
         top:80,
         position: 'absolute',
         bottom: 14,
@@ -522,6 +524,7 @@ const styles = StyleSheet.create({
 
     //暂停按钮
     pauseBtn:{
+        zIndex:2,
         width:width,
         height:90,
         position:'absolute',
@@ -531,6 +534,7 @@ const styles = StyleSheet.create({
     },
     //重新播放按钮
     resumeIcon: {
+        zIndex:2,
         top:80,
         position: 'absolute',
         bottom: 14,
@@ -547,6 +551,7 @@ const styles = StyleSheet.create({
     },
     //视频出错的文案样式
     failText:{
+        zIndex:2,
         position:'absolute',
         left:0,
         top:90,
