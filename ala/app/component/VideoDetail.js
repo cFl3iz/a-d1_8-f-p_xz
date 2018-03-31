@@ -9,18 +9,21 @@ import Video from 'react-native-video'
 import {
     StyleSheet,
     Text,
-    ScrollView,
+    TextInput,
     Image,
     View,
     ListView,
     ActivityIndicator,
     Dimensions,
-    TouchableOpacity
+    Modal,
+    TouchableOpacity,
+    AlertIOS
 } from 'react-native';
 
 import Icon from 'react-native-vector-icons/Ionicons';
 import requestHelper from '../common/requestHelper';
 import config from '../common/config';
+import Button from 'react-native-button';
 //拿屏幕宽度
 var width = Dimensions.get('window').width;
 
@@ -31,9 +34,6 @@ var cachedResults = {
 }
 
 export default class VideoDetail extends React.Component {
-
-
-
 
 
     constructor(props) {
@@ -54,21 +54,26 @@ export default class VideoDetail extends React.Component {
                 muted: false,
                 resizeMode: 'contain',
                 repeat: false,
-                videoProgress:0.01,
-                videoTotal:0,
-                currentTime:0,
-                videoLoaded:false,
-                playing:false,
-                paused:false,
-                videoOk:true,
-                playerEnd:false,
+                videoProgress: 0.01,
+                videoTotal: 0,
+                currentTime: 0,
+                videoLoaded: false,
+                playing: false,
+                paused: false,
+                videoOk: true,
+                playerEnd: false,
 
                 //comments
-                comments:null,
-                dataSource:ds.cloneWithRows([]),
+                comments: null,
+                dataSource: ds.cloneWithRows([]),
                 isLoadingTail: false,
-                isRefreshing:false
+                isRefreshing: false,
+                content: '',
 
+                //Modal
+                animationType: 'none',
+                modalVisible: false,
+                isSending: false
             }
         )
     }
@@ -94,30 +99,30 @@ export default class VideoDetail extends React.Component {
     //每个250毫秒会调用一次
     _onProgress(data) {
         //当资源ok了
-        if(!this.state.videoLoaded){
+        if (!this.state.videoLoaded) {
             this.setState({
-                videoLoaded:!this.state.videoLoaded
+                videoLoaded: !this.state.videoLoaded
             })
         }
         //总共时长
-        var  duration = data.playableDuration
+        var duration = data.playableDuration
         //当前进度(时间)
-        var  currentTime = data.currentTime
+        var currentTime = data.currentTime
         //进度比例 总时间除当前时间再保留两位转数字
-        var  percent   = Number(currentTime / duration).toFixed(2)
+        var percent = Number(currentTime / duration).toFixed(2)
 
         var newState = {
-            videoTotal:duration,
-            currentTime:Number(currentTime.toFixed(2)),
-            videoProgress:percent
+            videoTotal: duration,
+            currentTime: Number(currentTime.toFixed(2)),
+            videoProgress: percent
         }
 
         // 如果视频状态没有准备就绪，此时将状态改为就绪
-        if(!this.state.videoLoaded){
+        if (!this.state.videoLoaded) {
             newState.videoLoaded = true
         }
         // 如果视频播放状态不为true，此时将状态改为就绪
-        if(!this.state.playing && !this.state.playerEnd ){
+        if (!this.state.playing && !this.state.playerEnd) {
             newState.playing = true
         }
 
@@ -126,21 +131,23 @@ export default class VideoDetail extends React.Component {
 
 //        console.log(data)
     }
+
     //视频播放完毕
     _onEnd() {
         //视频播放完毕 进度条完整,playing状态变成假。
         this.setState({
-            videoProgress:1,
-            playing:false,
-            playerEnd:true
+            videoProgress: 1,
+            playing: false,
+            playerEnd: true
         })
     }
+
     //视频出错时
     _videoError(e) {
         console.log(e)
         console.log('_videoError')
         this.setState({
-            videoOk:false
+            videoOk: false
         })
     }
 
@@ -151,35 +158,38 @@ export default class VideoDetail extends React.Component {
     _onTimedMetadata() {
         console.log('_onTimedMetadata')
     }
-    _setDuration(){
+
+    _setDuration() {
         console.log('onLoad')
     }
+
     //让视频重新播放
-    _rePlay(){
+    _rePlay() {
         this.setState({
-            paused:false,
-            playing:true,
-            playerEnd:false
+            paused: false,
+            playing: true,
+            playerEnd: false
         })
         this.refs.videoPlayer.seek(0);
     }
 
     //暂停方法
-    _pause(){
-        if(!this.state.paused){
+    _pause() {
+        if (!this.state.paused) {
             this.setState({
-                paused:true,
-                playing:false
+                paused: true,
+                playing: false
             })
         }
     }
+
     //重新播放
-    _resume(){
-        if(this.state.paused) {
+    _resume() {
+        if (this.state.paused) {
             this.setState({
                 paused: false,
-                playing:true,
-                playerEnd:false
+                playing: true,
+                playerEnd: false
             })
         }
     }
@@ -188,7 +198,7 @@ export default class VideoDetail extends React.Component {
         console.log('detail did mount')
         //是第一次加载
 
-            this._fetchData(1)
+        this._fetchData(1)
 
 
     }
@@ -198,72 +208,70 @@ export default class VideoDetail extends React.Component {
 
         var that = this
 
-                //正在读取状态
-            that.setState({
-                    isLoadingTail: true
-            })
+        //正在读取状态
+        that.setState({
+            isLoadingTail: true
+        })
 
-            var url  = config.api.base + config.api.comments
-            requestHelper.get(url,
-                {
-                    accessToken: 'abc',
-                    id:124,
-                    page: page
-                }
-            ).then(
-                (data) => {
-                    if (data.success) {
+        var url = config.api.base + config.api.comments
+        requestHelper.get(url,
+            {
+                accessToken: 'abc',
+                id: 124,
+                page: page
+            }
+        ).then(
+            (data) => {
+                if (data.success) {
 
-                        var items = cachedResults.items.slice()
-
-
-                            //直接追加
-                            items = items.concat(data.comments)
-                            cachedResults.nextPage += 1
+                    var items = cachedResults.items.slice()
 
 
-                        cachedResults.items = items
-
-                        cachedResults.total = data.total
-
-
-                            that.setState(
-                                {
-                                    isLoadingTail: false,
-                                    dataSource: that.state.dataSource.cloneWithRows(cachedResults.items)
-                                }
-                            )
+                    //直接追加
+                    items = items.concat(data.comments)
+                    cachedResults.nextPage += 1
 
 
-                    }
-                }
-            ).catch((error) => {
-                console.log('error='+JSON.stringify(error))
+                    cachedResults.items = items
+
+                    cachedResults.total = data.total
+
 
                     that.setState(
                         {
-                            isLoadingTail: false
+                            isLoadingTail: false,
+                            dataSource: that.state.dataSource.cloneWithRows(cachedResults.items)
                         }
                     )
 
 
-                console.error(error);
-            });
+                }
+            }
+        ).catch((error) => {
+            console.log('error=' + JSON.stringify(error))
+
+            that.setState(
+                {
+                    isLoadingTail: false
+                }
+            )
+
+
+            console.error(error);
+        });
 
     }
 
 
-
-
     //评论拉到底部时加载
-    _renderFoot(){
+    _renderFoot() {
 
-        if (!this._haseMore() && cachedResults.total!==0) {
+        if (!this._haseMore() && cachedResults.total !== 0) {
             return (
                 <View style={styles.loadingMore}><Text style={styles.loadingText}>没有更多里</Text></View>
             )
-        }else if (this._haseMore() && cachedResults.total!==0){
-            return <ActivityIndicator style={styles.loadingMore} />
+        } else if (this._haseMore() && cachedResults.total !== 0) {
+            return <ActivityIndicator style={styles.loadingMore}/>
 
         }
 
@@ -271,11 +279,11 @@ export default class VideoDetail extends React.Component {
 
     //获取更多数据
     _fetchMoreData() {
-        console.log('fetch more data this._haseMore()?'+this._haseMore())
-        console.log('fetch more data this.state.isLoadingTail?'+this.state.isLoadingTail)
+        console.log('fetch more data this._haseMore()?' + this._haseMore())
+        console.log('fetch more data this.state.isLoadingTail?' + this.state.isLoadingTail)
         if (!this._haseMore() || this.state.isLoadingTail == true) {
             return null
-        }else{
+        } else {
             var page = cachedResults.nextPage
             this._fetchData(page)
         }
@@ -289,29 +297,134 @@ export default class VideoDetail extends React.Component {
         return cachedResults.items.length !== cachedResults.total
     }
 
+    //设置模态框是否显示
+    _setModalVisible(isVisible) {
+        this.setState({
+            modalVisible: isVisible
+        })
+    }
+
+    //文本框获取焦点
+    _focus() {
+        this._setModalVisible(true)
+    }
+
+    _blur() {
+
+    }
+
+    _closeModal() {
+        this._setModalVisible(false)
+    }
+
+    //表单提交
+    _submit() {
+
+        let that = this
+
+        if (!this.state.content) {
+            return AlertIOS.alert('留言不能为空!')
+        }
+        if (this.state.isSending) {
+            return AlertIOS.alert('请稍后')
+        }
+
+        this.setState({
+                isSending: true
+            }
+        )
+
+
+            var body = {
+                accessToken: 'abc',
+                creation: '',
+                content: this.state.content
+            }
+            console.log('body='+body)
+            var url = config.api.base + config.api.comments
+        console.log('url='+url)
+
+        requestHelper.post(url, body).then(
+                (data) => {
+                    console.log('data='+data)
+
+                    if (data && data.success) {
+                        var items = cachedResults.items.slice()
+                        items = [{
+                            content: that.state.content,
+                            replyBy: {
+                                nickName: '老沈',
+                                avatar: 'http://dummyimage.com/640x640/79f27b'
+                            }
+                        }].concat(items)
+
+                        cachedResults.items = items
+                        cachedResults.total = cachedResults.total + 1
+                        that.setState(
+                            {
+                                isSending: false,
+                                dataSource: that.state.dataSource.cloneWithRows(cachedResults.items)
+                            }
+                        )
+
+                        that._setModalVisible(false)
+                    }
+                }
+            ).catch((err) => {
+                console.log(err)
+                that.setState(
+                    {
+                        isSending: false
+                    }
+                )
+                that._setModalVisible(false)
+                AlertIOS.alert('留言失败请重试!')
+            })
+
+    }
+
 
     // 渲染每一行
-    _renderRow(row){
+    _renderRow(row) {
         return (
             <View key={row._id} style={styles.replyBox}>
-                <Image style={styles.replyAvatra} source={{uri:row.replyBy.avatar}} />
+                <Image style={styles.replyAvatra} source={{uri: row.replyBy.avatar}}/>
                 <View style={styles.reply}>
-                    <Text style={styles.replyNickname} >{row.replyBy.nickName}</Text>
-                    <Text style={styles.replyContent} >{row.replyBy.content}</Text>
+                    <Text style={styles.replyNickname}>{row.replyBy.nickName}</Text>
+                    <Text style={styles.replyContent}>{row.content}</Text>
                 </View>
             </View>
         )
     }
 
-    _renderHeader(){
+    _renderHeader() {
         var data = this.state.data
-        return(
-            <View style={styles.infoBox}>
-                <Image style={styles.avatar} source={{uri:data.author.avatar}} />
-                <View style={styles.descBox}>
-                    <Text style={styles.nickName} >{data.author.nickName}</Text>
-                    <Text style={styles.descTitle} >{data.title}</Text>
+        return (
+            <View style={styles.listHeader}>
+                <View style={styles.infoBox}>
+                    <Image style={styles.avatar} source={{uri: data.author.avatar}}/>
+                    <View style={styles.descBox}>
+                        <Text style={styles.nickName}>{data.author.nickName}</Text>
+                        <Text style={styles.descTitle}>{data.title}</Text>
+                    </View>
                 </View>
+
+                <View style={styles.commentBox}>
+                    <View style={styles.comment}>
+                        <TextInput
+                            placeholder='请输入内容...'
+                            style={styles.content}
+                            multiline={true}
+                            onFocus={this._focus.bind(this)}
+                        />
+
+                    </View>
+
+                    <View style={styles.commentArea}>
+                        <Text style={styles.commentTitle}>精彩评论</Text>
+                    </View>
+                </View>
+
             </View>
         )
     }
@@ -323,7 +436,7 @@ export default class VideoDetail extends React.Component {
             <View style={[styles.tabContent]}>
                 <View style={styles.header}>
                     <TouchableOpacity style={styles.backBox} onPress={this._backToList.bind(this)}>
-                        <Icon name="ios-arrow-back" style={styles.backIcon} />
+                        <Icon name="ios-arrow-back" style={styles.backIcon}/>
                         <Text style={styles.backText}>返回</Text>
 
                     </TouchableOpacity>
@@ -357,7 +470,7 @@ export default class VideoDetail extends React.Component {
                         onTimedMetadata={this._onTimedMetadata}
                         style={styles.video}
 
-                        />
+                    />
 
                     {
                         !this.state.videoOk && <Text style={styles.failText}>视频出错!很抱歉无法播放</Text>
@@ -366,48 +479,86 @@ export default class VideoDetail extends React.Component {
 
                     {
                         !this.state.videoLoaded &&
-                        <ActivityIndicator   color="#ee735c" style={styles.loading}/>
+                        <ActivityIndicator color="#ee735c" style={styles.loading}/>
                     }
 
                     {
-                        this.state.videoLoaded  && !this.state.playing && this.state.playerEnd
-                        ? <Icon size={48} name='ios-play' onPress={this._rePlay.bind(this)} style={styles.playIcon} />
-                        : null
+                        this.state.videoLoaded && !this.state.playing && this.state.playerEnd
+                            ?
+                            <Icon size={48} name='ios-play' onPress={this._rePlay.bind(this)} style={styles.playIcon}/>
+                            : null
                     }
 
                     {
-                        this.state.videoLoaded  && this.state.playing
-                        ? <TouchableOpacity onPress={this._pause.bind(this)} style={styles.pauseBtn}>
+                        this.state.videoLoaded && this.state.playing
+                            ? <TouchableOpacity onPress={this._pause.bind(this)} style={styles.pauseBtn}>
                             {
-                               this.state.paused
-                                ? <Icon size={48} onPress={this._resume.bind(this)} name="ios-play" style={styles.resumeIcon}/>
-                                : <Text></Text>
+                                this.state.paused
+                                    ? <Icon size={48} onPress={this._resume.bind(this)} name="ios-play"
+                                            style={styles.resumeIcon}/>
+                                    : <Text></Text>
                             }
-                          </TouchableOpacity>
-                        :null
+                        </TouchableOpacity>
+                            : null
                     }
 
                     <View style={styles.progressBox}>
-                        <View style={[styles.progressBar,{width: width * this.state.videoProgress}]}>
+                        <View style={[styles.progressBar, {width: width * this.state.videoProgress}]}>
                         </View>
                     </View>
                 </View>
 
 
-
                 <ListView
                     removeClippedSubviews={false}
                     style={styles.authorScrollview}
-                    renderHeader={()=>this._renderHeader()}
+                    renderHeader={() => this._renderHeader()}
                     dataSource={this.state.dataSource}
                     renderRow={this._renderRow}
                     onEndReachedThreshold={20}
-                    renderFooter={()=>this._renderFoot()}
-                    onEndReached={()=>this._fetchMoreData()}
+                    renderFooter={() => this._renderFoot()}
+                    onEndReached={() => this._fetchMoreData()}
                     enableEmptySections={true}
                     automaticallyAdjustContentInsets={false}
                     showsVerticalScrollIndicator={false}
                 />
+
+                <Modal
+                    animationType={'fade'}
+                    visible={this.state.modalVisible}
+                    onRequestClose={() => {
+                        this._setModalVisible(false)
+                    }}
+
+                >
+                    <View style={styles.modalContainer}>
+                        <Icon
+                            onPress={this._closeModal.bind(this)}
+                            name="ios-close-outline"
+                            style={styles.closeIcon}
+                        />
+                        <View style={styles.commentBox}>
+                            <View style={styles.comment}>
+                                <TextInput
+                                    placeholder='请输入内容...'
+                                    style={styles.content}
+                                    multiline={true}
+                                    defaultValue={this.state.content}
+                                    onChangeText={(text) => {
+                                        this.setState({
+                                            content: text
+                                        })
+                                    }}
+                                />
+
+                            </View>
+                        </View>
+                        <Button style={styles.submitBtn} onPress={this._submit.bind(this)}>
+                            提交
+                        </Button>
+                    </View>
+
+                </Modal>
             </View>
 
         )
@@ -418,207 +569,267 @@ export default class VideoDetail extends React.Component {
 
 
 const styles = StyleSheet.create({
-    tabContent: {
-        flex: 1,
-        alignItems: 'center',
-    },
-
-    //头部样式
-    header:{
-      flexDirection:'row',
-        justifyContent:'center',
-        alignItems:'center',
-        width:width,
-        height:64,
-        paddingTop:20,
-        paddingLeft:10,
-        paddingRight:10,
-        borderBottomWidth:1,
-        borderColor:'transparent',
-        backgroundColor:'#fff'
-    },
-    //返回的容器
-    backBox:{
-        position:'absolute',
-        left:12,
-        top:32,
-        width:50,
-        flexDirection:'row',
-        alignItems:'center'
-    },
-    headerTitle:{
-        width:width-120,
-        textAlign:'center',
-
-    },
-    backIcon:{
-        color:'#999',
-        fontSize:20,
-        marginRight:5
-    },
-    backText:{
-        color:'#999'
-    },
 
 
-
-    tabText: {
-        color: 'red',
-        margin: 50,
-    },
-    videoBox: {
-        zIndex:0,
-        width: width,
-        height: width * 0.56,
-        backgroundColor: 'transparent'
-    },
-    video: {
-        zIndex:2,
-        width: width,
-        height: width * 0.56,
-        backgroundColor: '#000'
-    },
-
-
-
-    loading:{
-        zIndex:2,
-        position:'absolute',
-        left:0,
-        top:80,
-        width:width,
-        alignSelf:'center',
-        backgroundColor:'transparent'
-    },
+        //编辑评论区域样式START
+        modalContainer: {
+            flex: 1,
+            paddingTop: 45,
+            backgroundColor: '#fff'
+        },
+        closeIcon: {
+            fontSize: 30,
+            color: '#ee735c',
+            alignSelf: 'center'
+        },
+        //提交按钮
+        submitBtn: {
+            width: width - 20,
+            padding: 16,
+            marginTop: 20,
+            marginBottom: 20,
+            borderWidth: 1,
+            borderRadius: 4,
+            borderColor: '#ee735c',
+            fontSize: 18
+        },
 
 
-    //进度条样式
-    progressBox:{
-        width:width,
-        height:2,
-        backgroundColor:'#ccc'
-    },
-    progressBar:{
-        width:1,
-        height:2,
-        backgroundColor:'#ff6600'
-    },
+        //编辑评论区域样式END
 
-    //播放按钮
-    playIcon: {
-        zIndex:2,
-        top:80,
-        position: 'absolute',
-        bottom: 14,
-        left:width /2 - 30,
-        width: 60,
-        height: 60,
-        paddingTop: 8,
-        paddingLeft: 22,
-        backgroundColor: 'transparent',
-        borderColor: '#fff',
-        borderWidth: 1,
-        borderRadius: 30,
-        color: '#ed7b66'
-    },
 
-    //暂停按钮
-    pauseBtn:{
-        zIndex:2,
-        width:width,
-        height:90,
-        position:'absolute',
-        left:0,
-        top:0,
-        height: width * 0.56
-    },
-    //重新播放按钮
-    resumeIcon: {
-        zIndex:2,
-        top:80,
-        position: 'absolute',
-        bottom: 14,
-        left:width /2 - 30,
-        width: 60,
-        height: 60,
-        paddingTop: 8,
-        paddingLeft: 22,
-        backgroundColor: 'transparent',
-        borderColor: '#fff',
-        borderWidth: 1,
-        borderRadius: 30,
-        color: '#ed7b66'
-    },
-    //视频出错的文案样式
-    failText:{
-        zIndex:2,
-        position:'absolute',
-        left:0,
-        top:90,
-        width:width,
-        textAlign:'center',
-        color:'#fff',
-        backgroundColor:'transparent'
-    },
+        tabContent: {
+            flex: 1,
+            alignItems: 'center',
+        },
 
-    //视频作者信息样式
-    infoBox:{
-        width:width,
-        flexDirection:'row',
-        justifyContent:'center',
-        marginTop:10
-    },
-    avatar:{
-        width:60,
-        height:60,
-        marginRight:10,
-        marginLeft:10,
-        borderRadius:30
-    },
-    descBox:{
-        flex:1
-    },
-    nickName:{
-        fontSize:18
-    },
-    descTitle:{
-        marginTop:8,
-        fontSize:16,
-        color:'#666'
-    },
-    authorScrollview:{
-        width:width,
-        height:1280
-    },
+        //头部样式
+        header: {
+            flexDirection: 'row',
+            justifyContent: 'center',
+            alignItems: 'center',
+            width: width,
+            height: 64,
+            paddingTop: 20,
+            paddingLeft: 10,
+            paddingRight: 10,
+            borderBottomWidth: 1,
+            borderColor: 'transparent',
+            backgroundColor: '#fff'
+        },
+        //返回的容器
+        backBox: {
+            position: 'absolute',
+            left: 12,
+            top: 32,
+            width: 50,
+            flexDirection: 'row',
+            alignItems: 'center'
+        },
+        headerTitle: {
+            width: width - 120,
+            textAlign: 'center',
 
-    // 评论区域
-    replyBox:{
-        flexDirection:'row',
-        justifyContent:'flex-start',
-        marginTop:10
-    },
-    replyAvatra:{
-        width:40,
-        height:40,
-        marginRight:10,
-        marginLeft:10,
-        borderRadius:20
-    },
-    replyNickname:{
-        color:'#666'
-    },
-    replyContent:{
-        marginTop:4,
-        color:'#666'
-    },
-    reply:{
-        flex:1
-    },
-    loadingMore:{
-        marginVertical:20
-    },
-    loadingText:{
-        color:'#777',
-        textAlign:'center'
+        },
+        backIcon: {
+            color: '#999',
+            fontSize: 20,
+            marginRight: 5
+        },
+        backText: {
+            color: '#999'
+        },
+
+
+        tabText: {
+            color: 'red',
+            margin: 50,
+        },
+        videoBox: {
+            zIndex: 0,
+            width: width,
+            height: width * 0.56,
+            backgroundColor: 'transparent'
+        },
+        video: {
+            zIndex: 2,
+            width: width,
+            height: width * 0.56,
+            backgroundColor: '#000'
+        },
+
+
+        loading: {
+            zIndex: 2,
+            position: 'absolute',
+            left: 0,
+            top: 80,
+            width: width,
+            alignSelf: 'center',
+            backgroundColor: 'transparent'
+        },
+
+
+        //进度条样式
+        progressBox: {
+            width: width,
+            height: 2,
+            backgroundColor: '#ccc'
+        },
+        progressBar: {
+            width: 1,
+            height: 2,
+            backgroundColor: '#ff6600'
+        },
+
+        //播放按钮
+        playIcon: {
+            zIndex: 2,
+            top: 80,
+            position: 'absolute',
+            bottom: 14,
+            left: width / 2 - 30,
+            width: 60,
+            height: 60,
+            paddingTop: 8,
+            paddingLeft: 22,
+            backgroundColor: 'transparent',
+            borderColor: '#fff',
+            borderWidth: 1,
+            borderRadius: 30,
+            color: '#ed7b66'
+        },
+
+        //暂停按钮
+        pauseBtn: {
+            zIndex: 2,
+            width: width,
+            height: 90,
+            position: 'absolute',
+            left: 0,
+            top: 0,
+            height: width * 0.56
+        },
+        //重新播放按钮
+        resumeIcon: {
+            zIndex: 2,
+            top: 80,
+            position: 'absolute',
+            bottom: 14,
+            left: width / 2 - 30,
+            width: 60,
+            height: 60,
+            paddingTop: 8,
+            paddingLeft: 22,
+            backgroundColor: 'transparent',
+            borderColor: '#fff',
+            borderWidth: 1,
+            borderRadius: 30,
+            color: '#ed7b66'
+        },
+        //视频出错的文案样式
+        failText: {
+            zIndex: 2,
+            position: 'absolute',
+            left: 0,
+            top: 90,
+            width: width,
+            textAlign: 'center',
+            color: '#fff',
+            backgroundColor: 'transparent'
+        },
+
+        //视频作者信息样式
+        infoBox: {
+            width: width,
+            flexDirection: 'row',
+            justifyContent: 'center',
+            marginTop: 10
+        },
+        avatar: {
+            width: 60,
+            height: 60,
+            marginRight: 10,
+            marginLeft: 10,
+            borderRadius: 30
+        },
+        descBox: {
+            flex: 1
+        },
+        nickName: {
+            fontSize: 18
+        },
+        descTitle: {
+            marginTop: 8,
+            fontSize: 16,
+            color: '#666'
+        },
+        authorScrollview: {
+            width: width,
+            height: 1280
+        },
+
+        // 评论区域
+        replyBox: {
+            flexDirection: 'row',
+            justifyContent: 'flex-start',
+            marginTop: 10
+        },
+        replyAvatra: {
+            width: 40,
+            height: 40,
+            marginRight: 10,
+            marginLeft: 10,
+            borderRadius: 20
+        },
+        replyNickname: {
+            color: '#666'
+        },
+        replyContent: {
+            marginTop: 4,
+            color: '#666'
+        },
+        reply: {
+            flex: 1
+        },
+        loadingMore: {
+            marginVertical: 20
+        },
+        loadingText: {
+            color: '#777',
+            textAlign: 'center'
+        },
+
+
+        //评论盒子
+        listHeader: {
+            marginTop: 10,
+            width: width
+        },
+        commentBox: {
+            marginTop: 10,
+            marginBottom: 10,
+            padding: 8,
+            width: width
+        },
+        content: {
+            paddingLeft: 2,
+            color: '#333',
+            borderWidth: 1,
+            borderColor: '#ddd',
+            borderRadius: 4,
+            fontSize: 14,
+            height: 80
+        },
+        comment: {},
+        commentArea: {
+            width: width,
+            marginTop: 10,
+            paddingBottom: 6,
+            paddingLeft: 10,
+            paddingRight: 10,
+            borderBottomWidth: 1,
+            borderBottomColor: '#eee'
+        },
     }
-});
+);
