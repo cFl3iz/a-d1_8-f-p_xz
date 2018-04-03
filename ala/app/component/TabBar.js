@@ -10,7 +10,7 @@ import React, {Component} from 'react';
 import VideoEdit from './VideoEdit';
 import VideoList from './VideoList';
 import Me from './Me';
-
+import Login from './Login';
 
 import {
     Platform,
@@ -117,7 +117,7 @@ export default class TabBar extends React.Component {
                         });
                     }}>
                     {
-                        <Me/>
+                        <Login/>
                         //this._renderContent('#21551C', 'Green Tab', this.state.presses)
                     }
                 </Icon.TabBarItem>
