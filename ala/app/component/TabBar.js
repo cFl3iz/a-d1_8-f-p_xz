@@ -17,7 +17,8 @@ import {
     StyleSheet,
     Text,
     TabBarIOS,
-    View
+    View,
+    AsyncStorage
 } from 'react-native';
 
 import {Navigator} from 'react-native-deprecated-custom-components';
@@ -32,7 +33,8 @@ export default class TabBar extends React.Component {
             {
                 selectedTab: 'VideoList',
                 notifCount: 0,
-                presses: 0
+                presses: 0,
+                logined:false
             }
         )
     }
@@ -55,7 +57,54 @@ export default class TabBar extends React.Component {
     }
 
 
+    _afterLogin(user){
+        console.log('after login ... user= '+user)
+        var that = this
+        user = JSON.stringify(user)
+        AsyncStorage.setItem('user',user).then(
+            () => {
+                that.setState({
+                    logined:true,
+                    user:user
+                })
+            }
+        )
+    }
+
+    componentDidMount() {
+        // AsyncStorage.removeItem('user', (error) => { })
+          this._asyncAppStatus()
+    }
+
+    //Òì²½¶ÁÈ¡×´Ì¬
+    _asyncAppStatus(){
+        var that = this
+        AsyncStorage.getItem('user').then(
+            (data) => {
+                let user
+                let newState = {}
+                if(data){
+                    user = JSON.parse(data)
+                }
+                if(user && user.accessToken){
+                    newState.user = user
+                    newState.logined = true
+                }else{
+                    newState.logined = false
+                }
+
+                that.setState(newState)
+
+            }
+        )
+    }
+
     render() {
+
+        if(!this.state.logined){
+            return <Login afterLogin={this._afterLogin.bind(this)}/>
+        }
+
         return (
             <TabBarIOS
                 unselectedTintColor="yellow"
@@ -117,7 +166,7 @@ export default class TabBar extends React.Component {
                         });
                     }}>
                     {
-                        <Login/>
+                        <Me/>
                         //this._renderContent('#21551C', 'Green Tab', this.state.presses)
                     }
                 </Icon.TabBarItem>

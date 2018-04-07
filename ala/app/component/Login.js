@@ -50,6 +50,7 @@ export default class Login extends React.Component {
             (data)=>{
                 if(data && data.success){
                      console.log('Login Success ! data='+JSON.stringify(data))
+                     that.props.afterLogin(data.data)
                 }
             }
         ).catch((error)=>{
