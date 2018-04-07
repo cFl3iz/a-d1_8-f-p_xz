@@ -22,7 +22,8 @@ export default class Login extends React.Component {
             {
                 codeSent:false,
                 loading:false,
-                verifyCode:null
+                verifyCode:null,
+                countingDone:false
             }
         )
     }
@@ -30,6 +31,30 @@ export default class Login extends React.Component {
 
     static defaultProps = {
 
+    }
+
+    //真实登陆
+    _login(){
+        let that = this
+        let phoneNumber = this.state.phoneNumber
+        let verifyCode = this.state.verifyCode
+        if(!phoneNumber || !verifyCode){
+            return AlertIOS.alert('手机号或验证码不可为空!')
+        }
+        let body = {
+            phoneNumber:phoneNumber,
+            verifyCode:verifyCode
+        }
+        let url = config.api.base + config.api.login
+        requestHelper.post(url,body).then(
+            (data)=>{
+                if(data && data.success){
+                     console.log('Login Success ! data='+JSON.stringify(data))
+                }
+            }
+        ).catch((error)=>{
+            return AlertIOS.alert('登陆失败!')
+        })
     }
 
     //获取验证码
@@ -62,6 +87,12 @@ export default class Login extends React.Component {
         })
     }
 
+    //倒计时结束可再次发送
+    _countingDone(){
+        this.setState({
+            countingDone:true
+        })
+    }
 
     render() {
         return (
@@ -84,19 +115,35 @@ export default class Login extends React.Component {
 
                         {
                             this.state.codeSent
-                                ? <View>
+                                ? <View style={styles.verifyCodeBox}>
                                      <TextInput
                                      placeholder='输入验证码'
                                      autoCapitalize={'none'}
                                      autoCorrect={false}
                                      keyboardType={'number-pad'}
-                                     style={styles.inputField}
+                                     style={styles.inputVerifyCode}
                                      onChangeText={(text)=>{
                                         this.setState({
                                             verifyCode:text
                                         })
                                      }}
                                      />
+                                    {
+                                        this.state.countingDone ?
+                                            <Button style={styles.countBtn} onPress={this._sendVerifyCode.bind(this)}>获取验证码
+                                            </Button>
+                                            : <CountDownText style={styles.countBtn}
+                                                         countType='seconds'
+                                                         auto={true}
+                                                         afterEnd={this._countingDone.bind(this)}
+                                                         timeLeft={60}
+                                                         step={-1}
+                                                         startText='获取验证码'
+                                                         endText='获取验证码'
+                                                         intervalText={(sec) => sec + '秒可重发'}
+
+                                               />
+                                    }
                                   </View>
 
                                 : null
@@ -107,7 +154,7 @@ export default class Login extends React.Component {
                         {
                             this.state.codeSent ?
                                 <Button
-                                    onPress={this._submit}
+                                    onPress={this._login.bind(this)}
                                     style={styles.btn}
                                 >登陆</Button>              :
                                 <Button
@@ -150,6 +197,15 @@ const styles = StyleSheet.create({
         backgroundColor:'#fff',
         borderRadius:4
     },
+    inputVerifyCode:{
+        height:40,
+        padding:5,
+        width:150,
+        color:'#666',
+        fontSize:16,
+        backgroundColor:'#fff',
+        borderRadius:4
+    },
     btn:{
         padding:10,
         marginTop:10,
@@ -158,6 +214,24 @@ const styles = StyleSheet.create({
         borderWidth:1,
         borderRadius:4,
         color:'#ee735c'
+    },
+    verifyCodeBox:{
+        marginTop:10,
+        flexDirection:'row',
+        justifyContent:'space-between'
+    },
+    countBtn:{
+        width:110,
+        height:40,
+        padding:10,
+        marginLeft:8,
+        backgroundColor:'#ee735c',
+        borderColor:'#33735c',
+        color:'white',
+        textAlign:'left',
+        fontWeight:'600',
+        fontSize:15,
+        borderRadius:2
     }
 
 });
