@@ -20,7 +20,8 @@
 		"react-native-image-picker": "^0.26.7",
 		"react-native-sk-countdown": "^1.0.1",
 		"react-native-vector-icons": "^4.0.0",
-		"react-native-video": "git+https://github.com/react-native-community/react-native-video.git"
+		"react-native-video": "git+https://github.com/react-native-community/react-native-video.git",
+		"sha1": "^1.1.1"
 	},
 	"devDependencies": {
 		"babel-jest": "22.4.3",

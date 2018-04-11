@@ -166,7 +166,7 @@ export default class TabBar extends React.Component {
                         });
                     }}>
                     {
-                        <Me/>
+                        <Me user={this.state.user}/>
                         //this._renderContent('#21551C', 'Green Tab', this.state.presses)
                     }
                 </Icon.TabBarItem>

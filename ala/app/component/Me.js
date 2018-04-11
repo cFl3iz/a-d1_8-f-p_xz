@@ -18,11 +18,16 @@ import {
     Image,
     ActivityIndicator,
     TouchableOpacity,
+    AlertIOS,
     Dimensions,
     AsyncStorage
 } from 'react-native';
 
 //拿屏幕宽度
+import config      from '../common/config';
+import requestHelper from '../common/requestHelper';
+import sha1 from 'sha1';
+
 var width = Dimensions.get('window').width;
 var photoOptions = {
     title: '选择头像',
@@ -40,6 +45,20 @@ var photoOptions = {
         path: 'images'
     }
 };
+
+
+//图床的东西
+var CLOUDINARY = {
+    cloud_name: 'jasminedancing',
+    api_key: '452853698753846',
+    api_secret: 'xXGrZ8D5-t8qPwB9g7uGQorolII',
+    base:'http://res.cloudinary.com/jasminedancing',
+    image:'https://api.cloudinary.com/v1_1/jasminedancing/image/upload',
+    video:'https://api.cloudinary.com/v1_1/jasminedancing/video/upload',
+    audio:'https://api.cloudinary.com/v1_1/jasminedancing/raw/upload'
+
+}
+
 export default class Me extends React.Component {
 
     constructor(props) {
@@ -55,6 +74,10 @@ export default class Me extends React.Component {
 
     static defaultProps = {
 
+    }
+
+    avatar(id,type){
+        return CLOUDINARY.base64 + '/' + type + '/upload/' + id
     }
 
     componentDidMount() {
@@ -85,28 +108,105 @@ export default class Me extends React.Component {
     _pickPhoto(){
 
         var that = this
-
+        console.log('_pickPhoto = '+that.state.user);
         ImagePicker.showImagePicker(photoOptions, (response) => {
             console.log('Response = ', response);
 
             var avatarData = 'data:image/jpeg;base64,' + response.data
 
-            var user = that.state.user
-
-            user.avatar = avatarData
-
-            that.setState({
-                user:user
-            })
+            // var user = that.state.user
+            //
+            // user.avatar = avatarData
+            //
+            // that.setState({
+            //     user:user
+            // })
 
             if (response.didCancel) {
-              return
+                return
             }
             else if (response.error) {
                 console.log('ImagePicker Error: ', response.error)
             }
 
+
+            let timestamp = Date.now()
+            let tags      = 'app.avatar'
+            let folder    = 'avatar'
+            let signatureUrl = config.api.base + config.api.signature
+            let accessToken = that.state.user.accessToken
+            requestHelper.post(signatureUrl,{
+                accessToken:accessToken,
+                timestamp:timestamp,
+                type:'avatar'
+            }).then(
+                (data) =>{
+                    console.log('>>>>>>> data =' + data.success)
+                    if(data && data.success){
+                        console.log('signatureUrl='+data)
+                        let signature = 'folder='+folder +'&tags=' + tags+'&timestamp=' + timestamp + CLOUDINARY.api_secret
+                        signature = sha1(signature)
+                        let body = new FormData()
+                        body.append('folder',folder)
+                        body.append('timestamp',timestamp)
+                        body.append('signature',signature)
+                        body.append('tags',tags)
+                        body.append('api_key',CLOUDINARY.api_key)
+                        body.append('resource_type','image')
+                        body.append('file',avatarData)
+                        body.append('folder',folder)
+                        that._upload(body)
+                    }
+                }
+            )
+
+
+
+
         })
+    }
+
+
+    _upload(body){
+
+        let that = this
+
+        let xhr = new XMLHttpRequest()
+
+        let url = CLOUDINARY.image
+
+        xhr.open('POST',url)
+        xhr.onload = () => {
+            if(xhr.status !== 200){
+                AlertIOS.alert('请求失败:'+xhr.responseText)
+                return
+            }
+
+            if(!xhr.responseText){
+                AlertIOS.alert('请求失败:'+xhr.responseText)
+                return
+            }
+
+
+            let response
+
+            try{
+                response = JSON.parse(xhr.response)
+            }catch(e){
+                console.log(e)
+            }
+
+            if(response && response.public_id){
+                let user = that.state.user
+                user.avatar = that.avatar(response.public_id,'image')
+                that.setState({
+                    user:user
+                })
+            }
+
+        }
+
+        xhr.send(body)
     }
 
 
