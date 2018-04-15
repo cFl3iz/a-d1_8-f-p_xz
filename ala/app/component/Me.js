@@ -9,7 +9,7 @@ import Icon from 'react-native-vector-icons/Ionicons';
 var Platform = require('react-native').Platform;
 import   ImagePicker from 'react-native-image-picker';
 
-
+import Button      from "react-native-button";
 import {
     StyleSheet,
     Text,
@@ -92,8 +92,13 @@ export default class Me extends React.Component {
             modalVisible:false
         })
     }
-    changeUserState(){
-
+    //更新用户状态
+    _changeUserState(key,value){
+       let user =  this.state.user
+        user[key] = value
+        this.setState({
+            user:user
+        })
     }
 
     avatar(id, type) {
@@ -195,9 +200,11 @@ export default class Me extends React.Component {
         let user = this.state.user
         if(user && user.accessToken){
             let url = config.api.base + config.api.update
-
+            console.log('async user = url = ' + url +'|user='+JSON.stringify(user))
             requestHelper.post(url,user).then(
-                (data)=>{
+                (data) =>
+                {
+                    console.log('async user = data = ' + JSON.stringify(data))
                     if(data && data.success){
                         if(isAvatar){
                             AlertIOS.alert('头像更新成功')
@@ -209,9 +216,13 @@ export default class Me extends React.Component {
                             }
                         )
                         AsyncStorage.setItem('user',JSON.stringify(user))
+                        that._closeModal()
                     }
                 }
-            )
+            ).catch((err) => {
+                console.log(err)
+                AlertIOS.alert('更新失败,请稍后再试')
+            })
         }
     }
 
@@ -277,6 +288,16 @@ export default class Me extends React.Component {
         }
 
         xhr.send(body)
+    }
+
+
+    //提交更新用户信息
+    _submit(){
+        this._asyncUser(false)
+    }
+
+    _logout(){
+        this.props.logout()
     }
 
 
@@ -351,17 +372,61 @@ export default class Me extends React.Component {
                                 style={styles.inputField}
                                 autoCapitalize={'none'}
                                 autoCorrect={false}
-                                defaultValue={user.nickName}
+                                defaultValue={this.state.user.nickname}
                                 onChangeText={(text) => {
-                                                this.changeUserState('nickname',text)
+                                                this._changeUserState('nickname',text)
                                              }}
                                 />
                         </View>
+                        <View style={styles.fieldItem}>
+                            <Text style={styles.label}>年龄</Text>
+                            <TextInput
+                                placeholder='输入您年龄'
+                                keyboardType={'number-pad'}
+                                style={styles.inputField}
+                                autoCapitalize={'none'}
+                                autoCorrect={false}
+                                defaultValue={this.state.user.age}
+                                onChangeText={(text) => {
+                                    this._changeUserState('age',text)
+                                }}
+                            />
+                        </View>
+                        <View style={styles.fieldItem}>
+                            <Text style={styles.label}>性别</Text>
+                            <Icon.Button
+                                name="ios-paw"
+                                onPress={()=>{
+                                    this._changeUserState('gender','male')
+                                }
+                                }
+                                style={[styles.gender,this.state.user.gender === 'male' && styles.genderChecked]}
+                            >男</Icon.Button>
+                            <Icon.Button
+                                name="ios-paw-outline"
+                                onPress={()=>{
+                                    this._changeUserState('gender','female')
+                                }
+                                }
+                                style={[styles.gender,this.state.user.gender === 'female' && styles.genderChecked]}
+                            >女</Icon.Button>
+
+                        </View>
+                        <Button
+                            onPress={this._submit.bind(this)}
+                            style={styles.btn}
+                        >保存</Button>
                     </View>
+
+
+
+
                 </Modal>
 
-
-
+                <Button
+                    onPress={this._logout.bind(this)}
+                    style={styles.btn}
+                >注销账户</Button>
             </View>
 
         )
@@ -375,15 +440,7 @@ const styles = StyleSheet.create({
     container: {
         flex: 1
     },
-    toolBarExtra:{
-        position:'absolute',
-        top:26,
-        right:10,
-        color:'#fff',
-        textAlign:'right',
-        fontWeight:'600',
-        fontSize:14
-    },
+
     toolBar: {
         flexDirection: 'row',
         paddingTop: 25,
@@ -396,6 +453,26 @@ const styles = StyleSheet.create({
         color: '#fff',
         textAlign: 'center',
         fontWeight: '600'
+    },
+    toolBarExtra:{
+        position:'absolute',
+        top:26,
+        right:10,
+        color:'#fff',
+        textAlign:'right',
+        fontWeight:'600',
+        fontSize:14
+    },
+    btn:{
+        padding:10,
+        marginTop:25,
+        marginLeft:10,
+        marginRight:10,
+        backgroundColor:'transparent',
+        borderColor:'#ee735c',
+        borderWidth:1,
+        borderRadius:4,
+        color:'#ee735c'
     },
     avatarContainer: {
         width: width,
@@ -461,8 +538,15 @@ const styles = StyleSheet.create({
         width:40,
         height:40,
         fontSize:32,
-        right:20,
+        right:1,
         top:30,
         color:'#ee735c'
+    },
+    gender:{
+        backgroundColor:'#ccc'
+    },
+    genderChecked:{
+        backgroundColor:'#ee735c'
     }
+
 });

@@ -99,6 +99,15 @@ export default class TabBar extends React.Component {
         )
     }
 
+    //注销当前用户
+    _logout(){
+        AsyncStorage.removeItem('user')
+        this.setState({
+            logined:false,
+            user:null
+        })
+    }
+
     render() {
 
         if(!this.state.logined){
@@ -166,7 +175,7 @@ export default class TabBar extends React.Component {
                         });
                     }}>
                     {
-                        <Me user={this.state.user}/>
+                        <Me user={this.state.user} logout={this._logout.bind(this)}/>
                         //this._renderContent('#21551C', 'Green Tab', this.state.presses)
                     }
                 </Icon.TabBarItem>
