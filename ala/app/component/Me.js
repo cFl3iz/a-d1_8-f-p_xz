@@ -16,10 +16,12 @@ import {
     View,
     Image,
     ActivityIndicator,
+    Modal,
     TouchableOpacity,
     AlertIOS,
     Dimensions,
-    AsyncStorage
+    AsyncStorage,
+    TextInput
 } from 'react-native';
 
 //拿屏幕宽度
@@ -27,7 +29,7 @@ import config      from '../common/config';
 import requestHelper from '../common/requestHelper';
 import sha1 from 'sha1';
 import * as Progress from 'react-native-progress';
-
+import {Circle} from 'react-native-progress'
 var width = Dimensions.get('window').width;
 var photoOptions = {
     title: '选择头像',
@@ -68,7 +70,8 @@ export default class Me extends React.Component {
             {
                 user: this.props.user || {},
                 avatarProgress: 0,
-                avatarUploading: false
+                avatarUploading: false,
+                modalVisible:false
             }
         )
     }
@@ -76,7 +79,30 @@ export default class Me extends React.Component {
 
     static defaultProps = {}
 
+
+    //编辑,打开modal
+    _edit(){
+        this.setState({
+            modalVisible:true
+        })
+    }
+    //关闭模态框
+    _closeModal(){
+        this.setState({
+            modalVisible:false
+        })
+    }
+    changeUserState(){
+
+    }
+
     avatar(id, type) {
+        if(id.indexOf('http') > -1){
+            return id
+        }
+        if(id.indexOf('base64') > -1){
+            return id
+        }
         return CLOUDINARY.base + '/' + type + '/upload/' + id
     }
 
@@ -163,6 +189,32 @@ export default class Me extends React.Component {
     }
 
 
+    //同步更新用户信息
+    _asyncUser(isAvatar){
+        let that = this
+        let user = this.state.user
+        if(user && user.accessToken){
+            let url = config.api.base + config.api.update
+
+            requestHelper.post(url,user).then(
+                (data)=>{
+                    if(data && data.success){
+                        if(isAvatar){
+                            AlertIOS.alert('头像更新成功')
+                        }
+                        let user = data.data
+                        that.setState(
+                            {
+                                user : user
+                            }
+                        )
+                        AsyncStorage.setItem('user',JSON.stringify(user))
+                    }
+                }
+            )
+        }
+    }
+
     _upload(body) {
 
         let that = this
@@ -200,12 +252,14 @@ export default class Me extends React.Component {
 
             if (response && response.public_id) {
                 let user = that.state.user
-                user.avatar = that.avatar(response.public_id, 'image')
+                user.avatar = response.public_id
                 that.setState({
                     avatarUploading: false,
                     avatarProgress: 0,
                     user: user
                 })
+                that._asyncUser(true)
+
             }
 
         }
@@ -213,9 +267,10 @@ export default class Me extends React.Component {
         if (xhr.upload) {
             xhr.upload.onprogress = (event) => {
                 if (event.lengthComputable) {
-                    let parcent = Number((event.loaded / event.total).toFixed(2))
+                    let percent = Number((event.loaded / event.total).toFixed(2))
+
                     that.setState({
-                        avatarProgress: parcent
+                        avatarProgress: percent
                     })
                 }
             }
@@ -233,6 +288,7 @@ export default class Me extends React.Component {
 
                 <View style={styles.toolBar}>
                     <Text style={styles.toolBarTitle}>我的账户</Text>
+                    <Text style={styles.toolBarExtra} onPress={this._edit.bind(this)}>编辑</Text>
                 </View>
 
 
@@ -240,17 +296,17 @@ export default class Me extends React.Component {
                     user.avatar
                         ?
                         <TouchableOpacity style={styles.avatarContainer} onPress={this._pickPhoto.bind(this)}>
-                            <Image source={{uri: user.avatar}} style={styles.avatarContainer}>
+                            <Image source={{uri: this.avatar(user.avatar,'image')}} style={styles.avatarContainer}>
                                 <View style={styles.avatarBox}>
                                     {
                                         this.state.avatarUploading
-                                            ? <Progress.Circle
+                                            ? <Circle
                                             showText={true}
                                             color={'#ee735c'}
                                             size={75}
                                             progress={this.state.avatarProgress}
                                         />
-                                            : <Image source={{uri: user.avatar}} style={styles.avatar}>
+                                            : <Image source={{uri:this.avatar(user.avatar,'image')}} style={styles.avatar}>
                                               </Image>
                                     }
 
@@ -264,7 +320,7 @@ export default class Me extends React.Component {
                             <TouchableOpacity style={styles.avatarBox} onPress={this._pickPhoto.bind(this)}>
                                 {
                                     this.state.avatarUploading
-                                        ? <Progress.Circle
+                                        ? <Circle
                                         showText={true}
                                         color={'#ee735c'}
                                         size={75}
@@ -279,6 +335,33 @@ export default class Me extends React.Component {
                 }
 
 
+                <Modal
+                    animationType={'fade'}
+                    visible={this.state.modalVisible}>
+                    <View style={styles.modalContainer}>
+                        <Icon
+                            name='ios-close-outline'
+                            style={styles.closeIcon}
+                            onPress={this._closeModal.bind(this)}
+                        />
+                        <View style={styles.fieldItem}>
+                            <Text style={styles.label}>昵称</Text>
+                            <TextInput
+                                placeholder='输入您的名称'
+                                style={styles.inputField}
+                                autoCapitalize={'none'}
+                                autoCorrect={false}
+                                defaultValue={user.nickName}
+                                onChangeText={(text) => {
+                                                this.changeUserState('nickname',text)
+                                             }}
+                                />
+                        </View>
+                    </View>
+                </Modal>
+
+
+
             </View>
 
         )
@@ -291,6 +374,15 @@ export default class Me extends React.Component {
 const styles = StyleSheet.create({
     container: {
         flex: 1
+    },
+    toolBarExtra:{
+        position:'absolute',
+        top:26,
+        right:10,
+        color:'#fff',
+        textAlign:'right',
+        fontWeight:'600',
+        fontSize:14
     },
     toolBar: {
         flexDirection: 'row',
@@ -338,5 +430,39 @@ const styles = StyleSheet.create({
         resizeMode: 'cover',
         borderRadius: width * 0.1,
 
+    },
+    modalContainer:{
+        flex:1,
+        paddingTop:50,
+        backgroundColor:'#fff'
+    },
+    fieldItem:{
+        flexDirection:'row',
+        justifyContent:'space-between',
+        alignItems:'center',
+        height:50,
+        paddingLeft:15,
+        paddingRight:15,
+        borderColor:'#eee',
+        borderBottomWidth:1
+    },
+    label:{
+        color:'#ccc',
+        marginRight:10
+    },
+    inputField:{
+        flex:1,
+        height:50,
+        color:'#666',
+        fontSize:14
+    },
+    closeIcon:{
+        position:'absolute',
+        width:40,
+        height:40,
+        fontSize:32,
+        right:20,
+        top:30,
+        color:'#ee735c'
     }
 });
