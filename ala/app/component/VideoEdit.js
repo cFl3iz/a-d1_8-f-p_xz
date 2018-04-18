@@ -5,6 +5,7 @@
  */
 
 import React, {Component} from 'react';
+import _ from 'lodash'
 
 import {
     StyleSheet,
@@ -22,43 +23,43 @@ import   ImagePicker from 'react-native-image-picker';
 var width = Dimensions.get('window').width;
 var height = Dimensions.get('window').height;
 
-var videoOptions = {
+const defaultState = {
+
+    previewVideo:false,
+    //Video State
+    rate: 1.0,
+    muted: false,
+    resizeMode: 'contain',
+    repeat: false,
+    videoProgress: 0.01,
+    videoTotal: 0,
+    currentTime: 0,
+    videoLoaded: false,
+    playing: false,
+    paused: false,
+    videoOk: true,
+    playerEnd: false,
+}
+const videoOptions = {
     title: '选择视频',
     cancelButtonTitle: '取消',
-    takePhotoButtonTitle: '录制',
-    chooseFromLibraryButtonTitle: '选择视频',
-    videoQuality:'medium',
-    mediaType:'video',
-    durationLimit:500,
+    takePhotoButtonTitle: '录制视频',
+    chooseFromLibraryButtonTitle: '选择已有视频',
+    videoQuality: 'medium',
+    mediaType: 'video',
+    durationLimit: 15,
     noData: false,
     storageOptions: {
         skipBackup: true,
         path: 'images'
     }
-};
+}
 
 export default class VideoEdit extends React.Component {
 
     constructor(props) {
         super(props);
-        this.state = (
-            {
-                previewVideo:false,
-                //Video State
-                rate: 1.0,
-                muted: false,
-                resizeMode: 'contain',
-                repeat: false,
-                videoProgress: 0.01,
-                videoTotal: 0,
-                currentTime: 0,
-                videoLoaded: false,
-                playing: false,
-                paused: false,
-                videoOk: true,
-                playerEnd: false
-            }
-        )
+        this.state = _.clone(defaultState)
     }
 
 
@@ -70,15 +71,24 @@ export default class VideoEdit extends React.Component {
 
         var that = this
 
+        that._pause()
 
-        ImagePicker.showImagePicker(videoOptions, (response) => {
-            console.log('Response = ', response);
+        that.setState({
+            previewVideo:false
+        })
 
-            var uri = response.uri
+        ImagePicker.showImagePicker(videoOptions, (res) => {
+            if (res.didCancel) {
+                return
+            }
+            console.log('Response = ', res);
 
-            that.setState({
-                previewVideo:uri
-            })
+            let state = _.clone(defaultState)
+            const uri = res.uri
+
+            state.previewVideo = uri
+
+            that.setState(state)
 
 
             // var avatarData = 'data:image/jpeg;base64,' + response.data
@@ -138,35 +148,35 @@ export default class VideoEdit extends React.Component {
     //每个250毫秒会调用一次
     _onProgress(data) {
         //当资源ok了
-        if (!this.state.videoLoaded) {
-            this.setState({
-                videoLoaded: !this.state.videoLoaded
-            })
-        }
-        //总共时长
-        var duration = data.playableDuration
-        //当前进度(时间)
-        var currentTime = data.currentTime
-        //进度比例 总时间除当前时间再保留两位转数字
-        var percent = Number(currentTime / duration).toFixed(2)
-
-        var newState = {
-            videoTotal: duration,
-            currentTime: Number(currentTime.toFixed(2)),
-            videoProgress: percent
-        }
-
-        // 如果视频状态没有准备就绪，此时将状态改为就绪
-        if (!this.state.videoLoaded) {
-            newState.videoLoaded = true
-        }
-        // 如果视频播放状态不为true，此时将状态改为就绪
-        if (!this.state.playing && !this.state.playerEnd) {
-            newState.playing = true
-        }
-
-
-        this.setState(newState)
+        // if (!this.state.videoLoaded) {
+        //     this.setState({
+        //         videoLoaded: !this.state.videoLoaded
+        //     })
+        // }
+        // //总共时长
+        // var duration = data.playableDuration
+        // //当前进度(时间)
+        // var currentTime = data.currentTime
+        // //进度比例 总时间除当前时间再保留两位转数字
+        // var percent = Number(currentTime / duration).toFixed(2)
+        //
+        // var newState = {
+        //     videoTotal: duration,
+        //     currentTime: Number(currentTime.toFixed(2)),
+        //     videoProgress: percent
+        // }
+        //
+        // // 如果视频状态没有准备就绪，此时将状态改为就绪
+        // if (!this.state.videoLoaded) {
+        //     newState.videoLoaded = true
+        // }
+        // // 如果视频播放状态不为true，此时将状态改为就绪
+        // if (!this.state.playing && !this.state.playerEnd) {
+        //     newState.playing = true
+        // }
+        //
+        //
+        // this.setState(newState)
 
 //        console.log(data)
     }
@@ -214,6 +224,7 @@ export default class VideoEdit extends React.Component {
 
     //暂停方法
     _pause() {
+        console.log('on pause')
         if (!this.state.paused) {
             this.setState({
                 paused: true,
@@ -243,7 +254,7 @@ export default class VideoEdit extends React.Component {
                             {this.state.previewVideo ? '点击按钮配音'
                             :'录制视频'}
                         </Text>
-                        <Text style={styles.toolBarExtra}>更换视频</Text>
+                        <Text style={styles.toolBarExtra} onPress={this._pickVideo.bind(this)}>更换视频</Text>
                     </View>
 
                     <View style={styles.page}>
